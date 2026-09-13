@@ -416,8 +416,12 @@
             "SPYX",
             "NVDA",
             "WEETH",
+            "WHYPE",
             "KHYPE"
-          ]
+          ],
+          "symbolMapping": {
+            "WHYPE": "HYPE"
+          }
         },
         "DefiLlama": {
           "url": "https://pro-api.llama.fi/${API_KEY}/coins/prices/current/${SYMBOLS}",
@@ -949,8 +953,12 @@
             "SPYX",
             "NVDA",
             "WEETH",
+            "WHYPE",
             "KHYPE"
-          ]
+          ],
+          "symbolMapping": {
+            "WHYPE": "HYPE"
+          }
         },
         "DefiLlama": {
           "url": "https://pro-api.llama.fi/${API_KEY}/coins/prices/current/${SYMBOLS}",
