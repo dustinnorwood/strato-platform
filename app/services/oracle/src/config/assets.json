@@ -323,7 +323,9 @@
             "USDT",
             "WEETH",
             "WHYPE",
-            "KHYPE"
+            "KHYPE",
+            "NVDA",
+            "SPY"
           ]
         },
         "Metals.dev": {
@@ -414,7 +416,6 @@
             "TSLAX",
             "SPY",
             "SPYX",
-            "NVDA",
             "WEETH",
             "WHYPE",
             "KHYPE"
@@ -860,7 +861,9 @@
             "USDT",
             "WEETH",
             "WHYPE",
-            "KHYPE"
+            "KHYPE",
+            "NVDA",
+            "SPY"
           ]
         },
         "Metals.dev": {
@@ -951,7 +954,6 @@
             "TSLAX",
             "SPY",
             "SPYX",
-            "NVDA",
             "WEETH",
             "WHYPE",
             "KHYPE"
