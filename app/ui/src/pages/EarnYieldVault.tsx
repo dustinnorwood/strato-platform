@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePageTitle } from "@/hooks/usePageTitle";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { formatUnits } from "ethers";
 import { formatDistanceToNow } from "date-fns";
@@ -231,9 +232,10 @@ const EarnYieldVault = () => {
     await fetchHistory();
   }, [fetchHistory, isFundedVault]);
 
+  usePageTitle(meta?.title);
+
   useEffect(() => {
     if (meta) {
-      document.title = `${meta.title} | STRATO`;
       window.scrollTo(0, 0);
     }
   }, [meta]);

@@ -1,13 +1,10 @@
-
-import { useEffect } from 'react';
+import { usePageTitle } from "@/hooks/usePageTitle";
 import Navbar from '../components/Navbar';
 import Hero from '../components/home/Hero';
 import SiteFooter from '../components/SiteFooter';
 
 const Index = () => {
-  useEffect(() => {
-    document.title = "STRATO | Where Stability Meets Opportunity";
-  }, []);
+  usePageTitle("STRATO | Where Stability Meets Opportunity");
 
 
   return (
