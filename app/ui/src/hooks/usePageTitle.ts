@@ -5,13 +5,15 @@ export const SITE_NAME = "STRATO";
 export const DEFAULT_TITLE = "STRATO | Where Stability Meets Opportunity";
 
 /**
- * `"Rewards"` -> `"Rewards | STRATO"`. Titles that already carry the brand are
- * left alone so callers can pass a fully-formed title when they need one.
+ * `"Rewards"` -> `"Rewards | STRATO"`. Titles that already carry the brand —
+ * the home page's tagline and the landing pages' fully-formed titles — are left
+ * alone rather than picking up a second suffix.
  */
 export const formatPageTitle = (title?: string | null): string => {
   const trimmed = title?.trim();
   if (!trimmed) return DEFAULT_TITLE;
-  if (trimmed === SITE_NAME || trimmed.endsWith(` | ${SITE_NAME}`)) return trimmed;
+  if (trimmed === SITE_NAME || trimmed === DEFAULT_TITLE) return trimmed;
+  if (trimmed.endsWith(` | ${SITE_NAME}`)) return trimmed;
   return `${trimmed} | ${SITE_NAME}`;
 };
 
