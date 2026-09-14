@@ -96,7 +96,7 @@ const EarnVault = () => {
       .sort((a, b) => Number(BigInt(b.valueUsd || "0") - BigInt(a.valueUsd || "0")));
   }, [assets, totalEquity]);
 
-  usePageTitle("STRATO Earn Vault");
+  usePageTitle("Earn Vault");
 
   useEffect(() => {
     window.scrollTo(0, 0);

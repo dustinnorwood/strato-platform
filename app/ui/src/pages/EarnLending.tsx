@@ -63,7 +63,7 @@ const EarnLending = () => {
     return BigInt(liquidityInfo?.withdrawable?.maxWithdrawableUSDST || "0");
   };
 
-  usePageTitle("STRATO Earn Lending");
+  usePageTitle("Earn Lending");
 
   useEffect(() => {
     window.scrollTo(0, 0);

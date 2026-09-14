@@ -289,7 +289,7 @@ const EarnStaking = () => {
     }
   }, [isLoggedIn]);
 
-  usePageTitle("Stake STRATO");
+  usePageTitle("Stake");
 
   useEffect(() => {
     window.scrollTo(0, 0);

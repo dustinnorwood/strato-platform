@@ -105,7 +105,7 @@ const EarnPools = () => {
   const [isPoolWithdrawModalOpen, setIsPoolWithdrawModalOpen] = useState(false);
   const operationInProgressRef = useRef(false);
 
-  usePageTitle("STRATO Swap Pools");
+  usePageTitle("Swap Pools");
 
   useEffect(() => {
     if (isLoggedIn) fetchUsdstBalance();
