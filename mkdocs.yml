@@ -1,4 +1,4 @@
-site_name: STRATO Technical Docs
+site_name: Docs
 site_description: STRATO platform technical documentation (use-case first, end-user + developer)
 site_url: https://docs.strato.nexus
 site_author: BlockApps
@@ -6,6 +6,11 @@ copyright: Copyright &copy; 2026 BlockApps - STRATO Platform
 
 theme:
   name: material
+  logo: assets/strato-logo.svg
+  favicon: assets/favicon.png
+  font:
+    text: Poppins
+    code: Geist Mono
   features:
     - navigation.sections
     - navigation.indexes
@@ -20,17 +25,19 @@ theme:
     - content.action.edit
     - content.action.view
   palette:
-    - scheme: default
-      primary: indigo
-      accent: indigo
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      accent: custom
       toggle:
-        icon: material/brightness-7
+        icon: material/weather-night
         name: Switch to dark mode
-    - scheme: slate
-      primary: indigo
-      accent: indigo
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
       toggle:
-        icon: material/brightness-4
+        icon: material/weather-sunny
         name: Switch to light mode
 
 extra_css:
