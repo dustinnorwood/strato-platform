@@ -117,9 +117,20 @@ implementation (`Decider 0xDEC1DE` → `DeciderState.currentFeeContract`) for ev
 calls `StratoStaking.creditBlockReward(block.proposer, amount)`. Staking pulls the approved amount
 (so it can only credit what was paid) and splits it exactly like fees; `claimRewards` /
 `claimOperatorRewards` pay it out. A proposer staking will not credit (unlisted, delisted) is not
-paid and the reward stays in the router. Block rewards and proposer fees are the only income:
-the Phase 1 funded reward schedule was removed from V2 (an upgraded proxy settles what the schedule
-had already allocated to each record once, on its next touch).
+paid and the reward stays in the router. The Phase 1 funded reward schedule was removed from V2
+(an upgraded proxy settles what the schedule had already allocated to each record once, on its
+next touch).
+
+**Discretionary rewards** are the third source of income, open to anyone with tokens to give.
+`distributeRewards(tokens, amounts, validators)` splits each amount across the listed validators by
+stake weight (an empty list means the consensus set; division dust goes to the last recipient with
+stake), and `distributeRewardsTo(tokens, amounts, validators)` credits each amount in full to the
+matching validator. The caller approves staking and staking pulls each token, so a credit is always
+what actually arrived. STRATO joins block-reward accounting and USDST joins fee accounting, split
+and claimed the same way. Any other token goes wholly to the validator's operator, owed to that
+operator account (`pendingOperatorTokenRewards[operator][token]`, claimed with
+`claimOperatorTokenRewards`), because sharing it with delegators would mean settling every such
+token on every stake change. `recoverStrayToken` never takes a token's unclaimed rewards.
 
 `FeeRouter` runs in the signer's storage context and therefore keeps no storage; its addresses are
 genesis constants behind internal getters. `StratoStaking.processBlock` trusts only `block.*`

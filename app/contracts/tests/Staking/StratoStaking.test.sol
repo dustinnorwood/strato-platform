@@ -356,7 +356,7 @@ contract Describe_StratoStaking {
 
     // The funded reward schedule is gone: no way in, and a listed validator with no stake
     // that proposes nothing earns nothing.
-    function it_pays_nothing_but_block_rewards_and_fees() public {
+    function it_has_no_funded_reward_schedule() public {
         _registerSelf(validatorC);
         _bondBoth();
         _reward(VALIDATOR_A, 10e18);
@@ -434,6 +434,153 @@ contract Describe_StratoStaking {
             rejected = true;
         }
         require(rejected, "usdst is not a stray token");
+    }
+
+    // ---- discretionary rewards -----------------------------------------------------------
+
+    function _fundedToken(string symbol) internal returns (Token) {
+        Token token = Token(factory.createTokenWithInitialOwner(symbol, symbol, new string[](0), new string[](0), new string[](0), symbol, 0, 18, address(this)));
+        token.setStatus(2);
+        token.mint(address(funder), 100000e18);
+        funder.do(address(token), "approve(address,uint256)", address(staking), INFINITY);
+        return token;
+    }
+
+    function _pair(address a, address b) internal pure returns (address[] memory list) {
+        list = new address[](2);
+        list[0] = a;
+        list[1] = b;
+    }
+
+    function _amount(uint256 a) internal pure returns (uint256[] memory list) {
+        list = new uint256[](1);
+        list[0] = a;
+    }
+
+    function _amounts(uint256 a, uint256 b) internal pure returns (uint256[] memory list) {
+        list = new uint256[](2);
+        list[0] = a;
+        list[1] = b;
+    }
+
+    function it_distributes_strato_and_usdst_across_the_consensus_set_by_weight() public {
+        _bondBoth();
+        _stake(user1, VALIDATOR_A, 1000e18); // A: 2000, B: 2000
+        usdst.mint(address(funder), 1000e18);
+        funder.do(address(usdst), "approve(address,uint256)", address(staking), INFINITY);
+
+        funder.doSuccessfully(address(staking), "distributeRewards", _pair(address(strato), address(usdst)), _amounts(100e18, 100e18), new address[](0));
+
+        // A gets 50 of each: self-bond 1000 of 2000 -> 25, delegators 25 gross, 5% commission -> 1.25 + 23.75
+        require(_pendingOperatorRewards(VALIDATOR_A) == 2625e16, "A operator STRATO");
+        require(_pendingOperatorFees(VALIDATOR_A) == 2625e16, "A operator USDST");
+        require(_pendingOperatorRewards(VALIDATOR_B) == 50e18 && _pendingOperatorFees(VALIDATOR_B) == 50e18, "B has no delegators");
+        require(staking.allocatedRewardLiability() == 100e18, "STRATO owed");
+        require(staking.trackedUsdst() == 100e18, "USDST tracked");
+        require(staking.totalRewardsCredited() == 0, "block reward counter untouched");
+
+        setBlockContext(VALIDATOR_B, address(0), address(0), 0);
+        staking.processBlock();
+        require(staking.totalFeesCredited() == 0, "the next fee sync does not re-attribute it to the proposer");
+
+        uint256 before = strato.balanceOf(address(user1));
+        user1.doSuccessfully(address(staking), "claimRewards", _list(VALIDATOR_A));
+        require(strato.balanceOf(address(user1)) - before == 2375e16, "delegator STRATO");
+        user1.doSuccessfully(address(staking), "claimFeeRewards", _list(VALIDATOR_A));
+        require(usdst.balanceOf(address(user1)) == 2375e16, "delegator USDST");
+    }
+
+    function it_gives_other_tokens_to_operators_with_dust_to_the_last_recipient() public {
+        _bondBoth(); // A: 1000, B: 2000
+        _registerSelf(validatorC);
+        _selfBond(validatorC, address(validatorC), 1000e18); // listed, not in the set
+        Token cata = _fundedToken("CATA");
+
+        address[] memory three = new address[](3);
+        three[0] = VALIDATOR_A;
+        three[1] = VALIDATOR_B;
+        three[2] = address(validatorC);
+        funder.doSuccessfully(address(staking), "distributeRewards", _list(address(cata)), _amount(1001), three);
+
+        require(staking.pendingOperatorTokenRewards(address(operatorA), address(cata)) == 250, "A: 1001 * 1000 / 4000");
+        require(staking.pendingOperatorTokenRewards(address(operatorB), address(cata)) == 500, "B: 1001 * 2000 / 4000");
+        require(staking.pendingOperatorTokenRewards(address(validatorC), address(cata)) == 251, "C, the last recipient, takes the dust");
+        require(staking.tokenRewardLiability(address(cata)) == 1001 && cata.balanceOf(address(staking)) == 1001, "every pulled token is owed");
+        require(staking.allocatedRewardLiability() == 0, "nothing credited as STRATO");
+
+        operatorA.doSuccessfully(address(staking), "claimOperatorTokenRewards", _list(address(cata)));
+        require(cata.balanceOf(address(operatorA)) == 250, "operator claimed");
+        require(staking.tokenRewardLiability(address(cata)) == 751, "liability released");
+        operatorA.doExpectingFailure(address(staking), "claimOperatorTokenRewards", "SS: no rewards", _list(address(cata)));
+    }
+
+    function it_credits_specific_validators_in_a_batch() public {
+        _bondBoth();
+        _stake(user1, VALIDATOR_A, 1000e18);
+        Token cata = _fundedToken("CATA");
+
+        funder.doSuccessfully(address(staking), "distributeRewardsTo", _pair(address(strato), address(cata)), _amounts(10e18, 7e18), _pair(VALIDATOR_A, VALIDATOR_B));
+
+        // STRATO to A: self-bond 1000 of 2000 -> 5, delegators 5 gross, 5% commission -> 0.25 + 4.75
+        require(_pendingOperatorRewards(VALIDATOR_A) == 525e16, "A operator STRATO");
+        require(_pendingOperatorRewards(VALIDATOR_B) == 0, "B got no STRATO");
+        require(staking.pendingOperatorTokenRewards(address(operatorB), address(cata)) == 7e18, "B's operator got the CATA");
+        require(staking.pendingOperatorTokenRewards(address(operatorA), address(cata)) == 0, "A's operator got no CATA");
+
+        uint256 before = strato.balanceOf(address(user1));
+        user1.doSuccessfully(address(staking), "claimRewards", _list(VALIDATOR_A));
+        require(strato.balanceOf(address(user1)) - before == 475e16, "delegator STRATO");
+    }
+
+    function it_keeps_token_rewards_with_the_operator_that_earned_them() public {
+        _bondBoth();
+        Token cata = _fundedToken("CATA");
+        funder.doSuccessfully(address(staking), "distributeRewardsTo", _list(address(cata)), _amount(5e18), _list(VALIDATOR_A));
+
+        registry.adminSetOperator(VALIDATOR_A, address(operatorB));
+        operatorB.doExpectingFailure(address(staking), "claimOperatorTokenRewards", "SS: no rewards", _list(address(cata)));
+        operatorA.doSuccessfully(address(staking), "claimOperatorTokenRewards", _list(address(cata)));
+        require(cata.balanceOf(address(operatorA)) == 5e18, "the outgoing operator keeps what it earned");
+    }
+
+    function it_rejects_malformed_or_unfunded_distributions() public {
+        funder.doExpectingFailure(address(staking), "distributeRewards", "SS: no validators", _list(address(strato)), _amount(1e18), new address[](0));
+
+        _bondBoth();
+        _registerSelf(validatorC);
+        funder.doExpectingFailure(address(staking), "distributeRewardsTo", "SS: validator not listed", _list(address(strato)), _amount(1e18), _list(address(0xdead)));
+        funder.doExpectingFailure(address(staking), "distributeRewards", "SS: length mismatch", _list(address(strato)), _amounts(1e18, 1e18), new address[](0));
+        funder.doExpectingFailure(address(staking), "distributeRewards", "SS: duplicate validator", _list(address(strato)), _amount(1e18), _pair(VALIDATOR_A, VALIDATOR_A));
+        funder.doExpectingFailure(address(staking), "distributeRewards", "SS: no stake", _list(address(strato)), _amount(1e18), _list(address(validatorC)));
+
+        Token cata = _fundedToken("CATA");
+        bool rejected = false;
+        try attacker.do(address(staking), "distributeRewardsTo", _list(address(cata)), _amount(1e18), _list(VALIDATOR_A)) {
+        } catch {
+            rejected = true;
+        }
+        require(rejected, "a distribution must be paid for");
+        require(staking.tokenRewardLiability(address(cata)) == 0, "nothing credited");
+
+        // A failed distribution leaves nothing behind that blocks the next one.
+        funder.doSuccessfully(address(staking), "distributeRewardsTo", _list(address(cata)), _amount(1e18), _list(VALIDATOR_A));
+        require(staking.tokenRewardLiability(address(cata)) == 1e18, "later distribution credited");
+    }
+
+    function it_never_recovers_owed_token_rewards_as_stray() public {
+        _bondBoth();
+        Token cata = _fundedToken("CATA");
+        funder.doSuccessfully(address(staking), "distributeRewardsTo", _list(address(cata)), _amount(5e18), _list(VALIDATOR_A));
+        cata.mint(address(staking), 2e18); // sent directly, owed to nobody
+
+        bool rejected = false;
+        try staking.recoverStrayToken(address(cata), address(user2), 3e18) {
+        } catch {
+            rejected = true;
+        }
+        require(rejected, "owed rewards are not stray");
+        staking.recoverStrayToken(address(cata), address(user2), 2e18);
+        require(cata.balanceOf(address(user2)) == 2e18 && cata.balanceOf(address(staking)) == 5e18, "only the unowed part recovered");
     }
 
     // ---- in-place upgrade from the operator-keyed layout ---------------------------------

@@ -9,13 +9,15 @@ import "./IStakingGovernance.sol";
 // stake, rewards and unbonding per validator, publishes stake weights to governance
 // (consensus proposer selection) and keeps liveness counters.
 //
-// Validators are paid only for blocks they propose, from what the chain produces:
+// Validators earn from what the chain produces, for blocks they propose:
 //   - the block reward FeeRouter.payBlockRewards pushes through creditBlockReward (STRATO)
 //   - the proposer's share of each transaction fee, attributed in processBlock (USDST)
-// Each is split pro rata between the operator's self-bond and delegated stake; delegators get
-// their part net of the validator's commission through a per-stake index. Nothing here seizes
-// tokens: a missed proposal costs that block's income and, optionally after
-// maxConsecutiveMisses, a temporary jail.
+// and from discretionary rewards anyone may send in any token (distributeRewards /
+// distributeRewardsTo). STRATO and USDST income is split pro rata between the operator's
+// self-bond and delegated stake; delegators get their part net of the validator's commission
+// through a per-stake index. Discretionary rewards in any other token go wholly to the
+// operator. Nothing here seizes tokens: a missed proposal costs that block's income and,
+// optionally after maxConsecutiveMisses, a temporary jail.
 //
 // Validator lifecycle (status is derived, not stored):
 //   Missing    = no record
@@ -76,6 +78,8 @@ contract  StratoStaking is Ownable {
     // Shape and emission pattern are relied on by the node's stake-event parser (Delta.hs).
     event ValidatorSynced(address indexed operator, address indexed validator, bool registered, uint256 weight);
     event BlockRewardCredited(address indexed operator, address indexed validator, address indexed funder, uint256 amount);
+    event DiscretionaryRewardCredited(address indexed operator, address indexed validator, address indexed token, address funder, uint256 amount);
+    event OperatorTokenRewardsClaimed(address indexed operator, address indexed token, uint256 amount);
     event FeesCredited(address indexed operator, address indexed validator, uint256 amount);
     event UnattributedFees(address indexed validator, uint256 amount);
     event ProposalMissed(address indexed validator, address indexed operator, uint256 blockNumber);
@@ -167,6 +171,13 @@ contract  StratoStaking is Ownable {
     // STRATO credited as rewards and not yet claimed; kept out of recoverable STRATO.
     uint256 public allocatedRewardLiability;
     uint256 public totalRewardsCredited;
+
+    // Discretionary rewards in tokens other than STRATO and USDST, owed to operators:
+    // operator => token => amount. Keyed by the operator account rather than the validator, so
+    // a later change of operator never hands accrued rewards to the successor.
+    mapping(address => mapping(address => uint256)) public  pendingOperatorTokenRewards;
+    // Unclaimed discretionary rewards per token; kept out of recoverStrayToken.
+    mapping(address => uint256) public  tokenRewardLiability;
 
     // Final indexes of the retired reward schedule. Frozen; read only by _settleRetiredSchedule.
     uint256 public baseRewardPerOperatorStored;
@@ -1001,6 +1012,115 @@ contract  StratoStaking is Ownable {
         emit BlockRewardCredited(operatorOf(validator), validator, msg.sender, received);
     }
 
+    // ---- discretionary rewards -----------------------------------------------------------
+
+    // Anyone may add to validators' income with their own tokens, pulled with transferFrom
+    // (approve this contract first). STRATO and USDST are split exactly like block rewards and
+    // proposer fees and are claimed with them. Any other token goes wholly to the validator's
+    // operator: sharing it with delegators would mean settling every such token on every stake
+    // change, and a permissionless token set would make that unbounded.
+    //
+    // There is deliberately no reentrancy lock. A token that re-enters during its own transfer
+    // can only distort its own balance check, and so only its own ledger; STRATO and USDST are
+    // measured separately. A lock, on the other hand, would survive a caller's catch (a SolidVM
+    // catch does not roll back) and could block every later distribution.
+
+    // Split each amount across `validators` by stake weight; an empty list means the consensus
+    // set. Division dust goes to the last recipient with stake, so every pulled token is credited.
+    function distributeRewards(address[] calldata tokens, uint256[] calldata amounts, address[] calldata validators) external onlyInitialized {
+        require(tokens.length > 0 && tokens.length <= maxBatchSize, "SS: bad batch");
+        require(tokens.length == amounts.length, "SS: length mismatch");
+
+        bool toSet = validators.length == 0;
+        uint256 count = toSet ? activeValidators.length : validators.length;
+        uint256 hardCap = hardCapActiveValidators == 0 ? 50 : hardCapActiveValidators;
+        require(count > 0, "SS: no validators");
+        require(count <= hardCap, "SS: too many validators");
+
+        address[] memory recipients = new address[](count);
+        uint256[] memory weights = new uint256[](count);
+        uint256 totalWeight = 0;
+        uint256 lastWeighted = 0;
+        for (uint256 i = 0; i < count; i++) {
+            address validator = toSet ? activeValidators[i] : validators[i];
+            StakingValidator storage v = operators[validator];
+            if (!toSet) {
+                require(v.exists && v.active, "SS: validator not listed");
+                for (uint256 j = 0; j < i; j++) {
+                    require(recipients[j] != validator, "SS: duplicate validator");
+                }
+            }
+            recipients[i] = validator;
+            // A delisted validator governance kept in the set earns nothing.
+            uint256 weight = 0;
+            if (v.exists && v.active) {
+                weight = _validatorWeight(v);
+            }
+            weights[i] = weight;
+            totalWeight += weight;
+            if (weight > 0) lastWeighted = i;
+        }
+        require(totalWeight > 0, "SS: no stake");
+
+        for (uint256 t = 0; t < tokens.length; t++) {
+            uint256 received = _pullReward(tokens[t], amounts[t]);
+            uint256 credited = 0;
+            for (uint256 i = 0; i < count; i++) {
+                if (weights[i] == 0) continue;
+                uint256 share = (received * weights[i]) / totalWeight;
+                if (i == lastWeighted) {
+                    share = received - credited;
+                }
+                credited += share;
+                _creditDiscretionary(recipients[i], tokens[t], share);
+            }
+        }
+    }
+
+    // Batch of individual credits: amounts[i] of tokens[i], in full, to validators[i].
+    function distributeRewardsTo(address[] calldata tokens, uint256[] calldata amounts, address[] calldata validators) external onlyInitialized {
+        require(tokens.length > 0 && tokens.length <= maxBatchSize, "SS: bad batch");
+        require(tokens.length == amounts.length && tokens.length == validators.length, "SS: length mismatch");
+        for (uint256 i = 0; i < validators.length; i++) {
+            StakingValidator storage v = operators[validators[i]];
+            require(v.exists && v.active, "SS: validator not listed");
+        }
+
+        for (uint256 i = 0; i < tokens.length; i++) {
+            _creditDiscretionary(validators[i], tokens[i], _pullReward(tokens[i], amounts[i]));
+        }
+    }
+
+    // Pull `amount` of `token` from the caller and return what actually arrived.
+    function _pullReward(address token, uint256 amount) internal returns (uint256) {
+        require(token != address(0), "SS: token=0");
+        require(amount > 0, "SS: amount=0");
+        uint256 balanceBefore = IERC20(token).balanceOf(address(this));
+        require(IERC20(token).transferFrom(msg.sender, address(this), amount), "SS: reward transfer failed");
+        uint256 received = IERC20(token).balanceOf(address(this)) - balanceBefore;
+        require(received > 0, "SS: no reward");
+        return received;
+    }
+
+    function _creditDiscretionary(address validator, address token, uint256 amount) internal {
+        if (amount == 0) return;
+        StakingValidator storage v = operators[validator];
+        address operator = operatorOf(validator);
+        if (token == address(stratoToken)) {
+            _settleRetiredSchedule(v);
+            _creditRewards(v, amount);
+            allocatedRewardLiability += amount;
+        } else if (token == address(usdstToken)) {
+            // Tracked now, or the next fee sync would attribute it to the block proposer.
+            _creditFees(v, amount);
+            trackedUsdst += amount;
+        } else {
+            pendingOperatorTokenRewards[operator][token] += amount;
+            tokenRewardLiability[token] += amount;
+        }
+        emit DiscretionaryRewardCredited(operator, validator, token, msg.sender, amount);
+    }
+
     // Permissionless and idempotent per block; must never revert since it runs inside
     // the platform's fee payment for every transaction.
     function processBlock() external {
@@ -1147,6 +1267,26 @@ contract  StratoStaking is Ownable {
         emit OperatorFeesClaimed(msg.sender, validator, fees);
     }
 
+    // The caller's discretionary rewards in tokens other than STRATO and USDST, from every
+    // validator it has operated.
+    function claimOperatorTokenRewards(address[] calldata tokens) external onlyInitialized {
+        require(tokens.length > 0 && tokens.length <= maxBatchSize, "SS: bad batch");
+
+        bool claimed = false;
+        for (uint256 i = 0; i < tokens.length; i++) {
+            address token = tokens[i];
+            uint256 amount = pendingOperatorTokenRewards[msg.sender][token];
+            if (amount == 0) continue;
+
+            pendingOperatorTokenRewards[msg.sender][token] = 0;
+            tokenRewardLiability[token] -= amount;
+            require(IERC20(token).transfer(msg.sender, amount), "SS: reward transfer failed");
+            emit OperatorTokenRewardsClaimed(msg.sender, token, amount);
+            claimed = true;
+        }
+        require(claimed, "SS: no rewards");
+    }
+
     function withdrawUnbonded(uint256[] calldata requestIds) external onlyInitialized {
         require(requestIds.length > 0 && requestIds.length <= maxBatchSize, "SS: bad batch");
 
@@ -1204,6 +1344,9 @@ contract  StratoStaking is Ownable {
         require(to != address(0), "SS: to=0");
         require(token != address(stratoToken), "SS: use untracked recovery");
         require(token != address(usdstToken), "SS: use fee recovery");
+        uint256 balance = IERC20(token).balanceOf(address(this));
+        uint256 owed = tokenRewardLiability[token];
+        require(balance >= owed && amount <= balance - owed, "SS: rewards unavailable");
 
         require(IERC20(token).transfer(to, amount), "SS: recover failed");
         emit StrayTokenRecovered(token, to, amount);

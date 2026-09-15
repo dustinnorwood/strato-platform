@@ -73,6 +73,6 @@ Cryptoeconomics are "good enough to get going"; the accepted limitations are lis
 - Leaders are predictable; a stake shift can target a future slot only one block later (10k + unbonding make it noise).
 - A locked block re-proposed in a later round makes the next height's miss detection false-positive once (counter only).
 - Misses are not provable → no slashing until round changes carry signed evidence; then also fix `getHash` domain separation.
-- ~~Validator-address binding has no proof of possession yet~~ — resolved 2026-09-14: both staking contracts are keyed by validator address and binding an operator needs the validator key's signature (or an admin listing); the funded reward schedule was removed, so block rewards and proposer fees are the only validator income.
+- ~~Validator-address binding has no proof of possession yet~~ — resolved 2026-09-14: both staking contracts are keyed by validator address and binding an operator needs the validator key's signature (or an admin listing); the funded reward schedule was removed. Validator income is block rewards, proposer fees and (added 2026-09-15) permissionless discretionary rewards in any token: STRATO and USDST are split like block rewards and fees, and other tokens go wholly to the operator.
 - Quorum/leader math is per-validator stake; no Q-committee yet (header already carries the full vector for it).
 - Not yet done: deploy/migration scripts, PR 0 live measurements, multi-validator Helium chaos run.
