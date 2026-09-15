@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { formatUnits } from "ethers";
 import { ArrowLeft, CircleDollarSign, PiggyBank, Sparkles, Wallet } from "lucide-react";
+import AssetIcon from "@/components/ui/AssetIcon";
+import { SAVE_USDST_VAULT_KEY } from "@/config/vaultIcons";
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
@@ -675,9 +677,16 @@ const EarnSave = () => {
                       <div className="space-y-3">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                           <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-full bg-blue-500/15 dark:bg-blue-400/15 flex items-center justify-center">
-                              <PiggyBank className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                            </div>
+                            <AssetIcon
+                              vaultKey={SAVE_USDST_VAULT_KEY}
+                              alt="USDST Savings Vault"
+                              className="w-9 h-9 rounded-full object-cover shrink-0"
+                              fallback={
+                                <div className="w-9 h-9 rounded-full bg-blue-500/15 dark:bg-blue-400/15 flex items-center justify-center">
+                                  <PiggyBank className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                                </div>
+                              }
+                            />
                             <div>
                               <h1 className="text-xl md:text-2xl font-semibold tracking-tight">USDST Savings Vault</h1>
                               <p className="text-xs text-muted-foreground">
