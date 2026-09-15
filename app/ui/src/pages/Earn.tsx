@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { usePageTitle } from "@/hooks/usePageTitle";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import MobileSidebar from "@/components/dashboard/MobileSidebar";
@@ -228,8 +229,9 @@ const Earn = () => {
   const guestMode = !isLoggedIn;
   const navigate = useNavigate();
 
+  usePageTitle("Earn");
+
   useEffect(() => {
-    document.title = "Earn | STRATO";
     window.scrollTo(0, 0);
   }, []);
 

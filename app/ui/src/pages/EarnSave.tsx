@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { usePageTitle } from "@/hooks/usePageTitle";
 import { useNavigate } from "react-router-dom";
 import { formatUnits } from "ethers";
 import { ArrowLeft, CircleDollarSign, PiggyBank, Sparkles, Wallet } from "lucide-react";
@@ -378,8 +379,9 @@ const EarnSave = () => {
   const [actionAmount, setActionAmount] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  usePageTitle("USDST Savings Vault");
+
   useEffect(() => {
-    document.title = "USDST Savings Vault | STRATO";
     window.scrollTo(0, 0);
   }, []);
 
