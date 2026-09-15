@@ -6,6 +6,7 @@ copyright: Copyright &copy; 2026 BlockApps - STRATO Platform
 
 theme:
   name: material
+  custom_dir: techdocs-overrides
   logo: assets/strato-logo.svg
   favicon: assets/favicon.png
   font:
@@ -30,14 +31,14 @@ theme:
       primary: custom
       accent: custom
       toggle:
-        icon: material/weather-night
+        icon: lucide/sun
         name: Switch to dark mode
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
       primary: custom
       accent: custom
       toggle:
-        icon: material/weather-sunny
+        icon: lucide/moon
         name: Switch to light mode
 
 extra_css:
