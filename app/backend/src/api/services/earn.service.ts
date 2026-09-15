@@ -339,7 +339,8 @@ function addDirectMintRewards(add: AddFn, rewardActivities: any[]) {
   if (apy) add(constants.USDST, { source: "rewards", apy, meta: "direct_mint" });
 }
 
-// STRATO staking: native schedule APY plus the CATA rewards activity (if one is
+// STRATO staking: native staking APY (v1 reward schedule, or v2 realized block
+// rewards) plus the CATA rewards activity (if one is
 // registered against the staking contract), both keyed to the STRATO token so
 // the portfolio row shows the combined figure.
 async function addStakingApys(accessToken: string, add: AddFn, rewardActivities: any[]) {
