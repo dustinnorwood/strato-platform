@@ -112,12 +112,20 @@ nav:
       - Arbitrage & Market Making: scenarios/arbitrage-market-making.md
       - Withdrawals: scenarios/withdrawals.md
   
+  # === RUNNING A NODE ===
+  - Run a Node:
+      - Overview: node/index.md
+      - Requirements: node/requirements.md
+      - Install & Run: node/install.md
+      - Configuration: node/configuration.md
+      - Operations: node/operations.md
+
   # === CONTRIBUTING TO STRATO ===
   - Contributing to STRATO:
       - Setup: contribute/setup.md
       - Architecture: contribute/architecture.md
       - Contributing Guidelines: contribute/contributing.md
-  
+
   # === BUILDING APPS ON STRATO ===
   - Building Apps on STRATO:
       - Getting Started:
@@ -136,9 +144,28 @@ nav:
       - App API (Getting Started): reference/api.md
       - Interactive Reference (Swagger): reference/interactive-api.md
       - Core Platform API (Advanced): reference/strato-node-api.md
-  
-  # === SAFETY & FAQ ===
+      - Cirrus (Indexed Data): reference/cirrus.md
+      - Ethereum JSON-RPC: reference/json-rpc.md
+
+  # === PLATFORM ===
+  - Platform:
+      - Networks: platform/networks.md
+      - Consensus & Staking: platform/consensus.md
+      - Identity & Vault: platform/identity-and-vault.md
+      - Transactions & Fees: platform/transactions-and-fees.md
+
+  # === SOLIDVM ===
+  - SolidVM:
+      - Overview: solidvm/index.md
+      - Language Reference: solidvm/language.md
+      - Error Handling: solidvm/errors.md
+      - Differences from Solidity: solidvm/differences.md
+      - Upgradeable Contracts: solidvm/upgrades.md
+      - Testing with solid-vm-cli: solidvm/testing.md
+
+  # === SAFETY, FAQ & RELEASES ===
   - Safety & Risk: safety.md
   - FAQ: faq.md
+  - Release Notes: release-notes.md
 
 
