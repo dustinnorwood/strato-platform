@@ -23,6 +23,7 @@ so that they could be properly moved to their respective version's subsection.
 - Total difficulty now refers to block number (corresponds to ethVersion now being 63)
 
 ### Fixed
+- ethereum-jsonrpc ran one `consumeFromLatest` on the `jsonrpcresponse` topic per request. On the JLog streaming backend all of them share one subscriber checkpoint, so under concurrent load requests consumed each other's vm-runner replies and failed with "timeout waiting for vm-runner response" (eth_call, eth_getBalance returning 0x0, strato_simulate*, debug traces). The topic is now consumed once per process by a dispatcher that delivers each reply to the handler registered under its request id.
 - Ethereum-discovery now looks at udp_enable_time instead of enable_time for bonded/available peers 
 - SolidVM parsed expressions with the wrong operator precedence: assignment bound tighter than `&&`/`||` (so `flag = flag || cond` only ever stored `flag`), the ternary bound tighter than `&&`/`||`, equality bound tighter than the relational operators, and `**`/assignment associated to the left. Fixed behind the operator-precedence fork (see Added).
 - SolidVM typechecker rejected any contract inheriting a modifier that references a `private` state variable of the base ("Unknown variable"). Inherited modifiers are now checked only in the contract that declares them.
